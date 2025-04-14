@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ETH Staking Platform</title>
+    <script src="https://cdn.jsdelivr.net/npm/web3@1.5.2/dist/web3.min.js"></script>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .glass {
+            background: rgba(255, 255, 255, 0.2);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            border: 1px solid rgba(255, 255, 255, 0.18);
+            border-radius: 1rem;
+        }
+        body {
+            background: linear-gradient(45deg, #2a3e84, #1e1b4b);
+            min-height: 100vh;
+        }
+    </style>
+</head>
+<body class="text-white">
+    <div class="container mx-auto px-4 py-8">
+        <nav class="glass p-4 mb-8 flex justify-between items-center">
+            <h1 class="text-2xl font-bold">ETH Staking Platform</h1>
+            <button id="connectWallet" class="bg-indigo-600 hover:bg-indigo-700 px-6 py-2 rounded-lg transition-all">
+                Connect Wallet
+            </button>
+        </nav>
+
+        <div class="glass p-8 max-w-2xl mx-auto">
+            <div class="text-center mb-8">
+                <h2 class="text-3xl font-bold mb-4">Stake Your ETH</h2>
+                <p class="text-xl text-blue-200">Earn 13% APY on your staked tokens</p>
+                <div class="mt-4 p-4 bg-indigo-900/30 rounded-lg">
+                    <p class="text-sm">24-hour lock period for withdrawals</p>
+                </div>
+            </div>
+
+            <div class="space-y-6">
+                <div class="glass p-6">
+                    <h3 class="text-xl mb-4">Your Staking Details</h3>
+                    <div class="flex justify-between items-center mb-4">
+                        <span>Available ETH:</span>
+                        <span id="availableEth">0 ETH</span>
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <span>Staked ETH:</span>
+                        <span id="stakedEth">0 ETH</span>
+                    </div>
+                </div>
+
+                <div class="glass p-6">
+                    <h3 class="text-xl mb-4">Stake Tokens</h3>
+                    <div class="flex gap-4">
+                        <input type="number" id="stakeAmount" placeholder="Amount to stake" 
+                            class="flex-1 p-2 rounded-lg bg-white/10 border border-white/20">
+                        <button onclick="stake()" class="bg-green-600 hover:bg-green-700 px-6 py-2 rounded-lg">
+                            Stake
+                        </button>
+                    </div>
+                </div>
+
+                <div class="glass p-6">
+                    <h3 class="text-xl mb-4">Withdraw Tokens</h3>
+                    <div class="flex gap-4">
+                        <input type="number" id="withdrawAmount" placeholder="Amount to withdraw" 
+                            class="flex-1 p-2 rounded-lg bg-white/10 border border-white/20">
+                        <button onclick="withdraw()" class="bg-red-600 hover:bg-red-700 px-6 py-2 rounded-lg">
+                            Withdraw
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let web3;
+        let userAccount;
+        const contractAddress = "YOUR_CONTRACT_ADDRESS"; // Replace with actual contract address
+        
+        // Simple ABI for demonstration
+        const contractABI = [
+            {
+                "inputs": [{"name": "amount", "type": "uint256"}],
+                "name": "stake",
+                "outputs": [],
+                "stateMutability": "nonpayable",
+                "type": "function"
+            },
+            {
+                "inputs": [{"name": "amount", "type": "uint256"}],
+                "name": "withdraw",
+                "outputs": [],
+                "stateMutability": "nonpayable",
+                "type": "function"
+            }
+        ];
+
+        async function connectWallet() {
+            if (typeof window.ethereum !== 'undefined') {
+                try {
+                    web3 = new Web3(window.ethereum);
+                    const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+                    userAccount = accounts[0];
+                    document.getElementById('connectWallet').textContent = userAccount.substring(0, 6) + '...' + userAccount.substring(38);
+                    updateBalances();
+                } catch (error) {
+                    console.error("User denied account access");
+                }
+            } else {
+                alert("Please install MetaMask!");
+            }
+        }
+
+        async function updateBalances() {
+            if (!web3 || !userAccount) return;
+            
+            try {
+                const balance = await web3.eth.getBalance(userAccount);
+                document.getElementById('availableEth').textContent = web3.utils.fromWei(balance, 'ether') + ' ETH';
+                // Add contract interaction to get staked balance
+            } catch (error) {
+                console.error("Error updating balances:", error);
+            }
+        }
+
+        async function stake() {
+            if (!web3 || !userAccount) {
+                alert("Please connect your wallet first!");
+                return;
+            }
+
+            const amount = document.getElementById('stakeAmount').value;
+            if (!amount || amount <= 0) {
+                alert("Please enter a valid amount");
+                return;
+            }
+
+            try {
+                const contract = new web3.eth.Contract(contractABI, contractAddress);
+                await contract.methods.stake(web3.utils.toWei(amount, 'ether'))
+                    .send({from: userAccount});
+                updateBalances();
+            } catch (error) {
+                console.error("Error staking:", error);
+                alert("Staking failed. Please try again.");
+            }
+        }
+
+        async function withdraw() {
+            if (!web3 || !userAccount) {
+                alert("Please connect your wallet first!");
+                return;
+            }
+
+            const amount = document.getElementById('withdrawAmount').value;
+            if (!amount || amount <= 0) {
+                alert("Please enter a valid amount");
+                return;
+            }
+
+            try {
+                const contract = new web3.eth.Contract(contractABI, contractAddress);
+                await contract.methods.withdraw(web3.utils.toWei(amount, 'ether'))
+                    .send({from: userAccount});
+                updateBalances();
+            } catch (error) {
+                console.error("Error withdrawing:", error);
+                alert("Withdrawal failed. Please try again.");
+            }
+        }
+
+        document.getElementById('connectWallet').addEventListener('click', connectWallet);
+    </script>
+<script>document.body.addEventListener('wheel', e => { if (!e.ctrlKey) return; e.preventDefault(); return }, { passive: false })</script>
+	</body>
+</html>
